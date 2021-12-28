@@ -189,7 +189,7 @@ async function getAnimeUrl(text, user, num, extra_options = {}) {
     text = text.replace(/ /g, '_').toLowerCase();
 
     let rating = '';
-    let search_site = extra_options.inline ? 'gelbooru' : (user.booru || 'gelbooru');
+    let search_site = user.booru ? user.booru : 'gelbooru';
     let url_search = Booru.resolveSite(search_site);
     // let seen_list = user.img_seen[search_site] || [];
 
@@ -272,26 +272,24 @@ async function getAnimeUrl(text, user, num, extra_options = {}) {
         if (arr_images.length >= num) {
             normal_exit = true;
             if (extra_options.inline) break;
-
-            let seen = await Find('image_asked', { imgid: { $in: arr_images.map(a => a.imgid) }, userid: user.id }, { imgid: 1 });
-            console.log('seen: ', seen);
-            if (seen.length == 0) break;
-            seen = seen.map(a => a.imgid);
-
-            arr_images = arr_images.filter(x => !seen.includes(x.imgid)); // jshint ignore:line
-            if (arr_images.length >= num) break;
+            if (!extra_options.no_db) {
+                let seen = await Find('image_asked', { imgid: { $in: arr_images.map(a => a.imgid) }, userid: user.id }, { imgid: 1 });
+                if (seen.length == 0) break;
+                seen = seen.map(a => a.imgid);
+                arr_images = arr_images.filter(x => !seen.includes(x.imgid)); // jshint ignore:line
+                if (arr_images.length >= num) break;
+            }
         }
         normal_exit = false;
     }
 
-    if (!extra_options.inline && !normal_exit) {
+    if (!extra_options.inline && !normal_exit && !extra_options.no_db) {
         let seen = await Find('image_asked', { imgid: { $in: arr_images.map(a => a.imgid) }, userid: user.id }, { imgid: 1 });
         seen = seen.map(a => a.imgid);
         arr_images = arr_images.filter(x => !seen.includes(x.imgid));
     }
 
 
-    console.log('arr_images: ', arr_images);
     if (!arr_images.length) {
         throw { err: 'NO_MORE_IMAGES' };
     }
@@ -301,7 +299,7 @@ async function getAnimeUrl(text, user, num, extra_options = {}) {
         for (let index of arr_images) results.photo.push(index);
     } else {
         let already_sent = [];
-        if (!extra_options.no_image_data) already_sent = await Find('image_data', { imgid: { $in: arr_images.map(a => a.imgid) } }, { tid: 1, imgid: 1 });
+        if (!extra_options.no_image_data && !extra_options.no_db) already_sent = await Find('image_data', { imgid: { $in: arr_images.map(a => a.imgid) } }, { tid: 1, imgid: 1 });
         for (let index of arr_images) {
             // if (!users[id].img_seen[search_site]) users[id].img_seen[search_site] = [];
             // users[id].img_seen[search_site].push(index.name);
@@ -312,7 +310,6 @@ async function getAnimeUrl(text, user, num, extra_options = {}) {
         }
     }
 
-    console.log('results: ', results);
     return results;
 }
 
@@ -474,18 +471,22 @@ async function sendImage(bot, user, text, num, retry = 0) {
     UpdateOne('users', { id: user.id }, { $set: { last_text: text || null } });
 
     if (retry >= 3) {
-        bot.sendMessage(user.id, "Couldn't send files...");
+        if (bot) {
+            bot.sendMessage(user.id, "Couldn't send files...");
+        }
         return;
     }
 
     let image_to_send = await getAnimeUrl(text, user, num).catch((err) => {
         console.log(err);
-        if (err.err == 'NO_MORE_IMAGES') {
-            bot.sendMessage(user.id, 'No more images to show...');
-        } else if (err.err == 'NO_MORE_IMAGES_TAG') {
-            bot.sendMessage(user.id, 'No images found\nNeed \/help searching?');
-        } else {
-            bot.sendMessage(user.id, 'Error getting the photo...');
+        if (bot) {
+            if (err.err == 'NO_MORE_IMAGES') {
+                bot.sendMessage(user.id, 'No more images to show...');
+            } else if (err.err == 'NO_MORE_IMAGES_TAG') {
+                bot.sendMessage(user.id, 'No images found\nNeed \/help searching?');
+            } else {
+                bot.sendMessage(user.id, 'Error getting the photo...');
+            }
         }
     });
 
