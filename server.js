@@ -2,7 +2,7 @@
 const express = require('express');
 const cors = require('cors');
 const moment = require('moment');
-const { Connect } = require('./modules/mongo/mongo');
+const { Connect, Find, UpdateOne } = require('./modules/mongo/mongo');
 const func = require('./functions');
 const Booru = require('./booru_custom');
 

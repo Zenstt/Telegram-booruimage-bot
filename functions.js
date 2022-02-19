@@ -28,6 +28,8 @@ const archiver = require('archiver');
  * realbooru    nsfw: true
  */
 
+const DEFAULT_BOORU = "safebooru";
+
 //Retrieving a random image with matching tags
 
 
@@ -106,7 +108,7 @@ async function checkUser(msg) {
                 joinedDate: moment().toDate(),
                 lastDate: moment().toDate(),
                 admin: false,
-                booru: 'gelbooru',
+                booru: DEFAULT_BOORU,
                 extra: {
                     type: 1,
                     video: true
@@ -189,7 +191,7 @@ async function getAnimeUrl(text, user, num, extra_options = {}) {
     text = text.replace(/ /g, '_').toLowerCase();
 
     let rating = '';
-    let search_site = user.booru ? user.booru : 'gelbooru';
+    let search_site = user.booru ? user.booru : DEFAULT_BOORU;
     let url_search = Booru.resolveSite(search_site);
     // let seen_list = user.img_seen[search_site] || [];
 
